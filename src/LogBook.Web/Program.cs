@@ -2,6 +2,7 @@ using LogBook.Web.Components;
 using LogBook.Web.Data;
 using LogBook.Web.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 
@@ -14,6 +15,11 @@ var connectionString = $"Data Source={Path.Combine(dataPath, "logbook.db")}";
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(connectionString));
+
+builder.Services
+    .AddDataProtection()
+    .SetApplicationName("LogBook")
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataPath, "keys")));
 
 // Add authentication
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
