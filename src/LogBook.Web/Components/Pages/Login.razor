@@ -1,0 +1,112 @@
+@page "/login"
+@layout LoginLayout
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Login - LogBook</PageTitle>
+
+<div class="d-flex align-items-center justify-content-center" style="min-height: 100vh; background: linear-gradient(135deg, #1976D2 0%, #1565C0 100%);">
+    <MudContainer MaxWidth="MaxWidth.ExtraSmall">
+        <MudCard Elevation="8" Class="pa-4">
+            <MudCardContent>
+                <div class="d-flex flex-column align-center mb-6">
+                    <MudIcon Icon="@Icons.Material.Filled.Book" Size="Size.Large" Color="Color.Primary" Class="mb-2" />
+                    <MudText Typo="Typo.h4" Color="Color.Primary" Class="fw-bold">LogBook</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Sign in to continue</MudText>
+                </div>
+
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <MudAlert Severity="Severity.Error" Class="mb-4" Dense="true">@_errorMessage</MudAlert>
+                }
+
+                <EditForm Model="_loginModel" OnValidSubmit="HandleLogin" FormName="login">
+                    <DataAnnotationsValidator />
+
+                    <MudTextField @bind-Value="_loginModel.Username"
+                                  Label="Username"
+                                  Variant="Variant.Outlined"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Person"
+                                  Class="mb-4"
+                                  Required="true"
+                                  RequiredError="Username is required" />
+
+                    <MudTextField @bind-Value="_loginModel.Password"
+                                  Label="Password"
+                                  Variant="Variant.Outlined"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@(_showPassword ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
+                                  OnAdornmentClick="@(() => _showPassword = !_showPassword)"
+                                  InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                                  Class="mb-6"
+                                  Required="true"
+                                  RequiredError="Password is required" />
+
+                    <MudButton ButtonType="ButtonType.Submit"
+                               Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Size="Size.Large"
+                               FullWidth="true"
+                               Disabled="_isLoading">
+                        @if (_isLoading)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        }
+                        Sign In
+                    </MudButton>
+                </EditForm>
+            </MudCardContent>
+        </MudCard>
+
+        <MudText Typo="Typo.caption" Align="Align.Center" Class="mt-4" Style="color: rgba(255,255,255,0.7);">
+            A simple, flexible logbook for tracking activities
+        </MudText>
+    </MudContainer>
+</div>
+
+@code {
+    private LoginModel _loginModel = new();
+    private string? _errorMessage;
+    private bool _isLoading;
+    private bool _showPassword;
+
+    protected override void OnInitialized()
+    {
+        if (AuthService.IsAuthenticated())
+        {
+            Navigation.NavigateTo("/");
+        }
+    }
+
+    private async Task HandleLogin()
+    {
+        _errorMessage = null;
+        _isLoading = true;
+
+        try
+        {
+            await Task.Delay(300); // Brief delay for UX
+
+            if (AuthService.ValidateCredentials(_loginModel.Username ?? "", _loginModel.Password ?? ""))
+            {
+                await AuthService.SignInAsync(_loginModel.Username!);
+                Navigation.NavigateTo("/", forceLoad: true);
+            }
+            else
+            {
+                _errorMessage = "Invalid username or password.";
+            }
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private class LoginModel
+    {
+        public string? Username { get; set; }
+        public string? Password { get; set; }
+    }
+}

@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  logbook:
+    image: ${DOCKERHUB_USERNAME:-ghosh9691}/logbook:${IMAGE_TAG:-latest}
+    ports:
+      - "8080:8080"
+    environment:
+      - LOGBOOK_USERNAME=${LOGBOOK_USERNAME:-admin}
+      - LOGBOOK_PASSWORD=${LOGBOOK_PASSWORD:-changeme}
+      - LOGBOOK_DATA_PATH=/app/data
+      - ASPNETCORE_ENVIRONMENT=Production
+    volumes:
+      - logbook_data:/app/data
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  logbook_data:
+    driver: local

@@ -1,0 +1,102 @@
+@page "/"
+@attribute [Authorize]
+@inject LogbookService LogbookService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Dashboard - LogBook</PageTitle>
+
+<div class="d-flex justify-space-between align-center mb-6">
+    <MudText Typo="Typo.h4">Dashboard</MudText>
+    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Href="/logbooks" StartIcon="@Icons.Material.Filled.Settings">
+        Manage Logbooks
+    </MudButton>
+</div>
+
+@if (_logbooks == null)
+{
+    <div class="d-flex justify-center py-8">
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+    </div>
+}
+else if (_logbooks.Count == 0)
+{
+    <MudPaper Class="pa-8 text-center" Elevation="0">
+        <MudIcon Icon="@Icons.Material.Filled.MenuBook" Size="Size.Large" Color="Color.Secondary" Class="mb-4" Style="font-size: 4rem;" />
+        <MudText Typo="Typo.h5" Color="Color.Secondary" Class="mb-2">No logbooks yet</MudText>
+        <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-6">Create your first logbook to start tracking activities.</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/logbooks" StartIcon="@Icons.Material.Filled.Add" Size="Size.Large">
+            Create Logbook
+        </MudButton>
+    </MudPaper>
+}
+else
+{
+    <MudGrid Spacing="3">
+        @foreach (var logbook in _logbooks)
+        {
+            var total = LogbookService.GetTotalDuration(logbook);
+            var count = LogbookService.GetEntryCount(logbook);
+
+            <MudItem xs="12" sm="6" md="4">
+                <MudCard Elevation="2" Class="cursor-pointer hover-elevate" @onclick="() => NavigateToLogbook(logbook.Id)" Style="height: 100%;">
+                    <MudCardContent>
+                        <div class="d-flex justify-space-between align-start mb-2">
+                            <MudText Typo="Typo.h6">@logbook.Name</MudText>
+                            <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Color="Color.Secondary" />
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(logbook.Description))
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">@logbook.Description</MudText>
+                        }
+
+                        <MudDivider Class="my-3" />
+
+                        <div class="d-flex justify-space-between align-end">
+                            <div>
+                                <MudText Typo="Typo.h4" Color="Color.Primary" Class="font-weight-bold">
+                                    @total.ToString("N1")
+                                </MudText>
+                                @if (!string.IsNullOrEmpty(logbook.Unit))
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@logbook.Unit</MudText>
+                                }
+                            </div>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">
+                                @count @(count == 1 ? "entry" : "entries")
+                            </MudChip>
+                        </div>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+<style>
+    .cursor-pointer {
+        cursor: pointer;
+    }
+    .hover-elevate {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .hover-elevate:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.15) !important;
+    }
+</style>
+
+@code {
+    private List<Logbook>? _logbooks;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _logbooks = await LogbookService.GetAllLogbooksAsync();
+    }
+
+    private void NavigateToLogbook(int id)
+    {
+        Navigation.NavigateTo($"/logbook/{id}");
+    }
+}

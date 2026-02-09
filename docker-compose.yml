@@ -1,0 +1,23 @@
+version: '3.8'
+
+# Simple docker-compose file for local development and testing
+# Usage: docker-compose up -d
+
+services:
+  logbook:
+    build:
+      context: ./src/LogBook.Web
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - LOGBOOK_USERNAME=admin
+      - LOGBOOK_PASSWORD=admin
+      - LOGBOOK_DATA_PATH=/app/data
+      - ASPNETCORE_ENVIRONMENT=Development
+    volumes:
+      - logbook_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  logbook_data:

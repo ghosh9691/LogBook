@@ -1,0 +1,107 @@
+@inherits LayoutComponentBase
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<MudThemeProvider Theme="_theme" IsDarkMode="_isDarkMode" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1" Dense="true">
+        <AuthorizeView>
+            <Authorized>
+                <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
+            </Authorized>
+        </AuthorizeView>
+        <MudIcon Icon="@Icons.Material.Filled.Book" Class="mr-2" />
+        <MudText Typo="Typo.h6" Class="mr-4">LogBook</MudText>
+        <MudSpacer />
+        <AuthorizeView>
+            <Authorized>
+                <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+                               Color="Color.Inherit" OnClick="@ToggleDarkMode" Title="Toggle Dark Mode" />
+                <MudMenu Icon="@Icons.Material.Filled.Person" Color="Color.Inherit" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+                    <MudMenuItem Disabled="true">
+                        <MudText Typo="Typo.body2">@context.User.Identity?.Name</MudText>
+                    </MudMenuItem>
+                    <MudDivider />
+                    <MudMenuItem Icon="@Icons.Material.Filled.Logout" OnClick="@Logout">Logout</MudMenuItem>
+                </MudMenu>
+            </Authorized>
+        </AuthorizeView>
+    </MudAppBar>
+
+    <AuthorizeView>
+        <Authorized>
+            <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2" Variant="DrawerVariant.Mini" OpenMiniOnHover="true">
+                <MudNavMenu>
+                    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
+                    <MudNavLink Href="/logbooks" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ListAlt">Logbooks</MudNavLink>
+                </MudNavMenu>
+            </MudDrawer>
+        </Authorized>
+    </AuthorizeView>
+
+    <MudMainContent Class="pt-16">
+        <MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">X</span>
+</div>
+
+@code {
+    private bool _drawerOpen = true;
+    private bool _isDarkMode = false;
+
+    private MudTheme _theme = new()
+    {
+        PaletteLight = new PaletteLight()
+        {
+            Primary = "#1976D2",
+            Secondary = "#00796B",
+            AppbarBackground = "#1976D2",
+            Background = "#F5F5F5",
+            Surface = "#FFFFFF",
+            DrawerBackground = "#FFFFFF"
+        },
+        PaletteDark = new PaletteDark()
+        {
+            Primary = "#90CAF9",
+            Secondary = "#80CBC4",
+            AppbarBackground = "#1E1E1E",
+            Background = "#121212",
+            Surface = "#1E1E1E",
+            DrawerBackground = "#1E1E1E"
+        },
+        Typography = new Typography()
+        {
+            Default = new DefaultTypography()
+            {
+                FontFamily = new[] { "Roboto", "Helvetica", "Arial", "sans-serif" }
+            }
+        }
+    };
+
+    private void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    private void ToggleDarkMode()
+    {
+        _isDarkMode = !_isDarkMode;
+    }
+
+    private async Task Logout()
+    {
+        await AuthService.SignOutAsync();
+        Navigation.NavigateTo("/login", forceLoad: true);
+    }
+}

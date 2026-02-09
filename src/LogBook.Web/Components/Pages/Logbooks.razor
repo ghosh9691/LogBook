@@ -1,0 +1,232 @@
+@page "/logbooks"
+@attribute [Authorize]
+@inject LogbookService LogbookService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@rendermode InteractiveServer
+
+<PageTitle>Manage Logbooks - LogBook</PageTitle>
+
+<div class="d-flex justify-space-between align-center mb-6">
+    <MudText Typo="Typo.h4">Manage Logbooks</MudText>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="@ShowCreateDialog">
+        New Logbook
+    </MudButton>
+</div>
+
+@if (_logbooks == null)
+{
+    <div class="d-flex justify-center py-8">
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+    </div>
+}
+else if (_logbooks.Count == 0)
+{
+    <MudPaper Class="pa-8 text-center" Elevation="0">
+        <MudIcon Icon="@Icons.Material.Filled.CreateNewFolder" Size="Size.Large" Color="Color.Secondary" Class="mb-4" Style="font-size: 4rem;" />
+        <MudText Typo="Typo.h5" Color="Color.Secondary" Class="mb-2">No logbooks created yet</MudText>
+        <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-6">Create your first logbook to start tracking.</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Large" OnClick="@ShowCreateDialog">
+            Create Your First Logbook
+        </MudButton>
+    </MudPaper>
+}
+else
+{
+    <MudTable Items="@_logbooks" Hover="true" Elevation="2" Dense="false">
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh>Description</MudTh>
+            <MudTh>Unit</MudTh>
+            <MudTh Style="width: 150px; text-align: right;">Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">
+                <MudText Typo="Typo.subtitle1" Class="font-weight-medium">@context.Name</MudText>
+            </MudTd>
+            <MudTd DataLabel="Description">
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@(context.Description ?? "-")</MudText>
+            </MudTd>
+            <MudTd DataLabel="Unit">
+                @if (!string.IsNullOrEmpty(context.Unit))
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">@context.Unit</MudChip>
+                }
+                else
+                {
+                    <MudText Color="Color.Secondary">-</MudText>
+                }
+            </MudTd>
+            <MudTd DataLabel="Actions" Style="text-align: right;">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" OnClick="@(() => ShowEditDialog(context))" Title="Edit" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => ShowDeleteDialog(context))" Title="Delete" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@* Create/Edit Dialog *@
+<MudDialog @bind-Visible="_showDialog" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@(_editingLogbook == null ? Icons.Material.Filled.Add : Icons.Material.Filled.Edit)" Class="mr-2" />
+            @(_editingLogbook == null ? "Create Logbook" : "Edit Logbook")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_formValid">
+            <MudTextField @bind-Value="_formModel.Name"
+                          Label="Name"
+                          Variant="Variant.Outlined"
+                          Required="true"
+                          RequiredError="Name is required"
+                          MaxLength="100"
+                          Placeholder="e.g., Snowblower, Car Mileage"
+                          Class="mb-4" />
+
+            <MudTextField @bind-Value="_formModel.Description"
+                          Label="Description"
+                          Variant="Variant.Outlined"
+                          Lines="2"
+                          MaxLength="500"
+                          Placeholder="Optional description"
+                          Class="mb-4" />
+
+            <MudTextField @bind-Value="_formModel.Unit"
+                          Label="Unit of Measurement"
+                          Variant="Variant.Outlined"
+                          MaxLength="50"
+                          Placeholder="e.g., hours, miles, minutes"
+                          HelperText="What are you measuring?" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@CloseDialog" Color="Color.Secondary">Cancel</MudButton>
+        <MudButton OnClick="@SaveLogbook" Color="Color.Primary" Variant="Variant.Filled" Disabled="@(!_formValid)">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@* Delete Confirmation Dialog *@
+<MudDialog @bind-Visible="_showDeleteDialog" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6" Color="Color.Error">
+            <MudIcon Icon="@Icons.Material.Filled.Warning" Class="mr-2" />
+            Delete Logbook
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body1" Class="mb-2">
+            Are you sure you want to delete <strong>@_deletingLogbook?.Name</strong>?
+        </MudText>
+        <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-4">
+            This will permanently delete all entries in this logbook. This action cannot be undone.
+        </MudAlert>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@CloseDeleteDialog" Color="Color.Secondary">Cancel</MudButton>
+        <MudButton OnClick="@ConfirmDelete" Color="Color.Error" Variant="Variant.Filled">Delete</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<Logbook>? _logbooks;
+    private bool _showDialog;
+    private bool _showDeleteDialog;
+    private Logbook? _editingLogbook;
+    private Logbook? _deletingLogbook;
+    private LogbookFormModel _formModel = new();
+    private MudForm? _form;
+    private bool _formValid;
+
+    private DialogOptions _dialogOptions = new()
+    {
+        MaxWidth = MaxWidth.Small,
+        FullWidth = true,
+        CloseButton = true,
+        CloseOnEscapeKey = true
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLogbooks();
+    }
+
+    private async Task LoadLogbooks()
+    {
+        _logbooks = await LogbookService.GetAllLogbooksAsync();
+    }
+
+    private void ShowCreateDialog()
+    {
+        _editingLogbook = null;
+        _formModel = new LogbookFormModel();
+        _showDialog = true;
+    }
+
+    private void ShowEditDialog(Logbook logbook)
+    {
+        _editingLogbook = logbook;
+        _formModel = new LogbookFormModel
+        {
+            Name = logbook.Name,
+            Description = logbook.Description,
+            Unit = logbook.Unit
+        };
+        _showDialog = true;
+    }
+
+    private void CloseDialog()
+    {
+        _showDialog = false;
+        _editingLogbook = null;
+    }
+
+    private void ShowDeleteDialog(Logbook logbook)
+    {
+        _deletingLogbook = logbook;
+        _showDeleteDialog = true;
+    }
+
+    private void CloseDeleteDialog()
+    {
+        _showDeleteDialog = false;
+        _deletingLogbook = null;
+    }
+
+    private async Task SaveLogbook()
+    {
+        if (string.IsNullOrWhiteSpace(_formModel.Name)) return;
+
+        if (_editingLogbook == null)
+        {
+            await LogbookService.CreateLogbookAsync(_formModel.Name, _formModel.Description, _formModel.Unit);
+            Snackbar.Add("Logbook created successfully", Severity.Success);
+        }
+        else
+        {
+            await LogbookService.UpdateLogbookAsync(_editingLogbook.Id, _formModel.Name, _formModel.Description, _formModel.Unit);
+            Snackbar.Add("Logbook updated successfully", Severity.Success);
+        }
+
+        CloseDialog();
+        await LoadLogbooks();
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (_deletingLogbook != null)
+        {
+            await LogbookService.DeleteLogbookAsync(_deletingLogbook.Id);
+            Snackbar.Add("Logbook deleted", Severity.Info);
+            CloseDeleteDialog();
+            await LoadLogbooks();
+        }
+    }
+
+    private class LogbookFormModel
+    {
+        public string? Name { get; set; }
+        public string? Description { get; set; }
+        public string? Unit { get; set; }
+    }
+}

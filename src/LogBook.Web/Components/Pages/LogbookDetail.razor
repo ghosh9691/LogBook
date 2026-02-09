@@ -1,0 +1,298 @@
+@page "/logbook/{Id:int}"
+@attribute [Authorize]
+@inject LogbookService LogbookService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@rendermode InteractiveServer
+
+<PageTitle>@(_logbook?.Name ?? "Logbook") - LogBook</PageTitle>
+
+@if (_logbook == null)
+{
+    <div class="d-flex justify-center py-8">
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+    </div>
+}
+else
+{
+    @* Header with breadcrumb and stats *@
+    <MudBreadcrumbs Items="_breadcrumbs" Class="mb-2 pa-0" />
+
+    <div class="d-flex justify-space-between align-start flex-wrap gap-4 mb-6">
+        <div>
+            <MudText Typo="Typo.h4" Class="mb-1">@_logbook.Name</MudText>
+            @if (!string.IsNullOrEmpty(_logbook.Description))
+            {
+                <MudText Typo="Typo.body1" Color="Color.Secondary">@_logbook.Description</MudText>
+            }
+        </div>
+        <MudPaper Elevation="2" Class="pa-4 text-center" Style="min-width: 150px;">
+            <MudText Typo="Typo.h3" Color="Color.Primary" Class="font-weight-bold">@_totalDuration.ToString("N1")</MudText>
+            @if (!string.IsNullOrEmpty(_logbook.Unit))
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary">total @_logbook.Unit</MudText>
+            }
+        </MudPaper>
+    </div>
+
+    @* Quick Add Card *@
+    <MudCard Elevation="2" Class="mb-6">
+        <MudCardContent>
+            <MudText Typo="Typo.h6" Class="mb-4">
+                <MudIcon Icon="@Icons.Material.Filled.AddCircle" Class="mr-2" />
+                Quick Add Entry
+            </MudText>
+            <MudGrid Spacing="2">
+                <MudItem xs="6" md="3">
+                    <MudDatePicker @bind-Date="_newEntryDate"
+                                   Label="Date"
+                                   Variant="Variant.Outlined"
+                                   DateFormat="MMM dd, yyyy"
+                                   PickerVariant="PickerVariant.Dialog"
+                                   Editable="true" />
+                </MudItem>
+                <MudItem xs="6" md="2">
+                    <MudNumericField @bind-Value="_newEntry.Duration"
+                                     Label="@(_logbook.Unit ?? "Value")"
+                                     Variant="Variant.Outlined"
+                                     Min="0"
+                                     Step="0.5M" />
+                </MudItem>
+                <MudItem xs="12" md="5">
+                    <MudTextField @bind-Value="_newEntry.Notes"
+                                  Label="Notes (optional)"
+                                  Variant="Variant.Outlined"
+                                  Placeholder="Add notes..." />
+                </MudItem>
+                <MudItem xs="12" md="2" Class="d-flex align-end">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               OnClick="@AddEntry"
+                               Style="height: 56px;">
+                        Add
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+    </MudCard>
+
+    @* Entries Table *@
+    @if (_logbook.Entries.Count == 0)
+    {
+        <MudPaper Class="pa-8 text-center" Elevation="0">
+            <MudIcon Icon="@Icons.Material.Filled.EventNote" Size="Size.Large" Color="Color.Secondary" Class="mb-4" Style="font-size: 4rem;" />
+            <MudText Typo="Typo.h6" Color="Color.Secondary" Class="mb-2">No entries yet</MudText>
+            <MudText Typo="Typo.body1" Color="Color.Secondary">Add your first entry using the form above.</MudText>
+        </MudPaper>
+    }
+    else
+    {
+        <MudTable Items="@_logbook.Entries" Hover="true" Elevation="2" Dense="false" Striped="true">
+            <HeaderContent>
+                <MudTh>Date</MudTh>
+                <MudTh Style="text-align: right;">@(_logbook.Unit ?? "Value")</MudTh>
+                <MudTh>Notes</MudTh>
+                <MudTh Style="width: 120px; text-align: right;">Actions</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Date">
+                    <MudText Typo="Typo.body1">@context.EntryDate.ToString("MMM dd, yyyy")</MudText>
+                </MudTd>
+                <MudTd DataLabel="@(_logbook.Unit ?? "Value")" Style="text-align: right;">
+                    <MudText Typo="Typo.body1" Class="font-weight-bold" Color="Color.Primary">
+                        @(context.Duration?.ToString("N1") ?? "-")
+                    </MudText>
+                </MudTd>
+                <MudTd DataLabel="Notes">
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@(context.Notes ?? "-")</MudText>
+                </MudTd>
+                <MudTd DataLabel="Actions" Style="text-align: right;">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" OnClick="@(() => ShowEditDialog(context))" Title="Edit" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => ShowDeleteDialog(context))" Title="Delete" />
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+}
+
+@* Edit Dialog *@
+<MudDialog @bind-Visible="_showEditDialog" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-2" />
+            Edit Entry
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudDatePicker @bind-Date="_editEntryDate"
+                       Label="Date"
+                       Variant="Variant.Outlined"
+                       DateFormat="MMM dd, yyyy"
+                       PickerVariant="PickerVariant.Dialog"
+                       Class="mb-4" />
+
+        <MudNumericField @bind-Value="_editEntry.Duration"
+                         Label="@(_logbook?.Unit ?? "Value")"
+                         Variant="Variant.Outlined"
+                         Min="0"
+                         Step="0.5M"
+                         Class="mb-4" />
+
+        <MudTextField @bind-Value="_editEntry.Notes"
+                      Label="Notes"
+                      Variant="Variant.Outlined"
+                      Lines="3" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@CloseEditDialog" Color="Color.Secondary">Cancel</MudButton>
+        <MudButton OnClick="@SaveEntry" Color="Color.Primary" Variant="Variant.Filled">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@* Delete Confirmation Dialog *@
+<MudDialog @bind-Visible="_showDeleteDialog" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6" Color="Color.Error">
+            <MudIcon Icon="@Icons.Material.Filled.Warning" Class="mr-2" />
+            Delete Entry
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body1">
+            Are you sure you want to delete this entry from <strong>@_deletingEntry?.EntryDate.ToString("MMM dd, yyyy")</strong>?
+        </MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@CloseDeleteDialog" Color="Color.Secondary">Cancel</MudButton>
+        <MudButton OnClick="@ConfirmDelete" Color="Color.Error" Variant="Variant.Filled">Delete</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Logbook? _logbook;
+    private decimal _totalDuration;
+    private EntryFormModel _newEntry = new();
+    private DateTime? _newEntryDate = DateTime.Today;
+    private EntryFormModel _editEntry = new();
+    private DateTime? _editEntryDate;
+    private int? _editingEntryId;
+    private LogEntry? _deletingEntry;
+    private bool _showEditDialog;
+    private bool _showDeleteDialog;
+    private List<BreadcrumbItem> _breadcrumbs = new();
+
+    private DialogOptions _dialogOptions = new()
+    {
+        MaxWidth = MaxWidth.Small,
+        FullWidth = true,
+        CloseButton = true,
+        CloseOnEscapeKey = true
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLogbook();
+    }
+
+    private async Task LoadLogbook()
+    {
+        _logbook = await LogbookService.GetLogbookAsync(Id);
+        if (_logbook == null)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+        _totalDuration = LogbookService.GetTotalDuration(_logbook);
+        _newEntry = new EntryFormModel();
+        _newEntryDate = DateTime.Today;
+
+        _breadcrumbs = new List<BreadcrumbItem>
+        {
+            new("Dashboard", href: "/", icon: Icons.Material.Filled.Home),
+            new(_logbook.Name, href: null, disabled: true)
+        };
+    }
+
+    private async Task AddEntry()
+    {
+        if (_logbook == null || _newEntryDate == null) return;
+
+        await LogbookService.CreateEntryAsync(
+            _logbook.Id,
+            _newEntryDate.Value,
+            _newEntry.Duration,
+            _newEntry.Notes);
+
+        Snackbar.Add("Entry added successfully", Severity.Success);
+        _newEntry = new EntryFormModel();
+        _newEntryDate = DateTime.Today;
+        await LoadLogbook();
+    }
+
+    private void ShowEditDialog(LogEntry entry)
+    {
+        _editingEntryId = entry.Id;
+        _editEntryDate = entry.EntryDate;
+        _editEntry = new EntryFormModel
+        {
+            Duration = entry.Duration,
+            Notes = entry.Notes
+        };
+        _showEditDialog = true;
+    }
+
+    private void CloseEditDialog()
+    {
+        _showEditDialog = false;
+        _editingEntryId = null;
+    }
+
+    private async Task SaveEntry()
+    {
+        if (_editingEntryId == null || _editEntryDate == null) return;
+
+        await LogbookService.UpdateEntryAsync(
+            _editingEntryId.Value,
+            _editEntryDate.Value,
+            _editEntry.Duration,
+            _editEntry.Notes);
+
+        Snackbar.Add("Entry updated successfully", Severity.Success);
+        CloseEditDialog();
+        await LoadLogbook();
+    }
+
+    private void ShowDeleteDialog(LogEntry entry)
+    {
+        _deletingEntry = entry;
+        _showDeleteDialog = true;
+    }
+
+    private void CloseDeleteDialog()
+    {
+        _showDeleteDialog = false;
+        _deletingEntry = null;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (_deletingEntry != null)
+        {
+            await LogbookService.DeleteEntryAsync(_deletingEntry.Id);
+            Snackbar.Add("Entry deleted", Severity.Info);
+            CloseDeleteDialog();
+            await LoadLogbook();
+        }
+    }
+
+    private class EntryFormModel
+    {
+        public decimal? Duration { get; set; }
+        public string? Notes { get; set; }
+    }
+}
