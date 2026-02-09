@@ -23,7 +23,7 @@ public class AuthService
         var configuredPassword = _configuration["LOGBOOK_PASSWORD"]
             ?? Environment.GetEnvironmentVariable("LOGBOOK_PASSWORD")
             ?? "admin";
-
+        Console.WriteLine($"Configured Username: {configuredUsername}, Configured Password: {configuredPassword}");
         return string.Equals(username, configuredUsername, StringComparison.OrdinalIgnoreCase)
             && password == configuredPassword;
     }
